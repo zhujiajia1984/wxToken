@@ -20,9 +20,11 @@ const intervalTime = 3600000; //1小时
 // 日志配置
 log4js.configure({
 	appenders: {
-		wxToken: {
+		access_token: {
 			type: 'file',
-			filename: '/home/myapp/logs/log_date/dateLog/wxToken.log'
+			filename: '/home/wxToken/logs/access_token.log',
+			maxLogSize: 1048576, //单位byte
+			keepFileExt: true,
 		},
 		out: {
 			type: 'stdout',
@@ -30,10 +32,10 @@ log4js.configure({
 		},
 	},
 	categories: {
-		default: { appenders: ['out'], level: 'debug' } //默认 
+		default: { appenders: ['out', 'access_token'], level: 'debug' } //默认 
 	}
 });
-// const logger = log4js.getLogger('default');
+const logger = log4js.getLogger('default');
 
 // 连接Redis服务器
 var portR = '6379';
@@ -42,9 +44,9 @@ var optionR = { auth_pass: 'zjj15202185069' };
 var redisClient = redis.createClient(portR, ipR, optionR);
 redisClient.on('ready', function(err) {
 	if (err) {
-		console.log(err);
+		logger.error(err);
 	} else {
-		console.log('connect redis server OK');
+		logger.info('connect redis server OK');
 	}
 })
 
@@ -66,7 +68,7 @@ function getAccessToken() {
 			error = "无效的 content-type";
 		}
 		if (error) {
-			console.log(error);
+			logger.error(error);
 			// 消耗响应数据以释放内存
 			res.resume();
 			return;
@@ -81,7 +83,7 @@ function getAccessToken() {
 		res.on('end', function() {
 			var data = JSON.parse(rawData);
 			var access_token = JSON.stringify(data.access_token);
-			console.log("access_token：" + access_token);
+			logger.info("access_token：" + access_token);
 			redisClient.set(key, access_token);
 			redisClient.expire(key, time); //过期时间设置
 		});
@@ -89,3 +91,30 @@ function getAccessToken() {
 		console.error(e.message);
 	})
 }
+
+// https.get("https://weiquaninfo.cn/weather/xinzhi", function(res) {
+// 	const statusCode = res.statusCode;
+// 	var error = null;
+// 	if (statusCode !== 200) {
+// 		error = "请求失败。状态码: " + statusCode;
+// 	}
+// 	if (error) {
+// 		console.log(error);
+// 		// 消耗响应数据以释放内存
+// 		res.resume();
+// 		return;
+// 	}
+
+// 	// 监听事件
+// 	var rawData = '';
+// 	res.setEncoding('utf8');
+// 	res.on('data', function(chunk) {
+// 		rawData += chunk;
+// 	});
+// 	res.on('end', function() {
+// 		var data = JSON.parse(rawData);
+// 		console.log(data);
+// 	});
+// }).on('error', function(e) {
+// 	console.error(e);
+// })
