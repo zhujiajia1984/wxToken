@@ -16,6 +16,6 @@
     "log4js": "^2.3.12"
   },
   "devDependencies": {
-    "redis": "^2.8.0"
+    "async": "^2.6.0"
   }
 }
