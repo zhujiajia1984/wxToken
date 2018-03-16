@@ -21,120 +21,120 @@ const intervalTime = 3600000; //1小时
 
 // 日志配置
 log4js.configure({
-	appenders: {
-		access_token: {
-			type: 'file',
-			filename: '/home/wxToken/logs/access_token.log',
-			maxLogSize: 1048576, //单位byte
-			keepFileExt: true,
-		},
-		out: {
-			type: 'stdout',
-			layout: { type: 'colored' }
-		},
-	},
-	categories: {
-		default: { appenders: ['out', 'access_token'], level: 'debug' } //默认 
-	}
+    appenders: {
+        access_token: {
+            type: 'file',
+            filename: '/home/node/myapp/logs/access_token.log',
+            maxLogSize: 1048576, //单位byte
+            keepFileExt: true,
+        },
+        out: {
+            type: 'stdout',
+            layout: { type: 'colored' }
+        },
+    },
+    categories: {
+        default: { appenders: ['out', 'access_token'], level: 'debug' } //默认 
+    }
 });
 const logger = log4js.getLogger('default');
 
 // 连接Redis服务器
 var portR = '6379';
-var ipR = '127.0.0.1';
+var ipR = 'redis_redis_1';
 var optionR = { auth_pass: 'zjj15202185069' };
 var redisClient = redis.createClient(portR, ipR, optionR);
 redisClient.on('ready', function(err) {
-	if (err) {
-		logger.error(err);
-	} else {
-		logger.info('connect redis server OK');
-	}
+    if (err) {
+        logger.error(err);
+    } else {
+        logger.info('connect redis server OK');
+    }
 })
 
 // 每隔60分钟获取access_token并存入redis
 getAccessToken();
 setInterval(function() {
-	getAccessToken();
+    getAccessToken();
 }, intervalTime)
 
 
 function getAccessToken() {
-	https.get(url, function(res) {
-		const statusCode = res.statusCode;
-		const contentType = res.headers['content-type'];
-		var error = null;
-		if (statusCode !== 200) {
-			error = "请求失败。状态码: " + statusCode;
-		} else if (!/^application\/json/.test(contentType)) {
-			error = "无效的 content-type";
-		}
-		if (error) {
-			logger.error(error);
-			// 消耗响应数据以释放内存
-			res.resume();
-			return;
-		}
+    https.get(url, function(res) {
+        const statusCode = res.statusCode;
+        const contentType = res.headers['content-type'];
+        var error = null;
+        if (statusCode !== 200) {
+            error = "请求失败。状态码: " + statusCode;
+        } else if (!/^application\/json/.test(contentType)) {
+            error = "无效的 content-type";
+        }
+        if (error) {
+            logger.error(error);
+            // 消耗响应数据以释放内存
+            res.resume();
+            return;
+        }
 
-		// 监听事件
-		var rawData = '';
-		res.setEncoding('utf8');
-		res.on('data', function(chunk) {
-			rawData += chunk;
-		});
-		res.on('end', function() {
-			var data = JSON.parse(rawData);
-			var access_token = JSON.stringify(data.access_token);
-			logger.info("access_token：" + access_token);
-			redisClient.set(key, access_token);
-			redisClient.expire(key, time); //过期时间设置
-			// 获取jsapi-ticket
-			getJsapi_ticket(access_token);
+        // 监听事件
+        var rawData = '';
+        res.setEncoding('utf8');
+        res.on('data', function(chunk) {
+            rawData += chunk;
+        });
+        res.on('end', function() {
+            var data = JSON.parse(rawData);
+            var access_token = JSON.stringify(data.access_token);
+            logger.info("access_token：" + access_token);
+            redisClient.set(key, access_token);
+            redisClient.expire(key, time); //过期时间设置
+            // 获取jsapi-ticket
+            getJsapi_ticket(access_token);
 
-		});
-	}).on('error', function(e) {
-		console.error(e.message);
-	})
+        });
+    }).on('error', function(e) {
+        console.error(e.message);
+    })
 }
 
 
 // 获取jsapi-ticket
 function getJsapi_ticket(access_token) {
-	var token = access_token.substring(1, access_token.length - 1);
-	var url = "https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=" + token + "&type=jsapi";
-	// logger.info("url_ticket：" + url);
-	https.get(url, function(res) {
-		const statusCode = res.statusCode;
-		const contentType = res.headers['content-type'];
-		var error = null;
-		if (statusCode !== 200) {
-			error = "请求jsapi-ticket失败。状态码: " + statusCode;
-		} else if (!/^application\/json/.test(contentType)) {
-			error = "无效的 content-type";
-		}
-		if (error) {
-			logger.error(error);
-			// 消耗响应数据以释放内存
-			res.resume();
-			return;
-		}
+    var token = access_token.substring(1, access_token.length - 1);
+    var url = "https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=" + token + "&type=jsapi";
+    // logger.info("url_ticket：" + url);
+    https.get(url, function(res) {
+        const statusCode = res.statusCode;
+        const contentType = res.headers['content-type'];
+        var error = null;
+        if (statusCode !== 200) {
+            error = "请求jsapi-ticket失败。状态码: " + statusCode;
+        } else if (!/^application\/json/.test(contentType)) {
+            error = "无效的 content-type";
+        }
+        if (error) {
+            logger.error(error);
+            // 消耗响应数据以释放内存
+            res.resume();
+            return;
+        }
 
-		// 监听事件
-		var rawData = '';
-		res.setEncoding('utf8');
-		res.on('data', function(chunk) {
-			rawData += chunk;
-		});
-		res.on('end', function() {
-			var data = JSON.parse(rawData);
-			var jsapi_ticket = JSON.stringify(data.ticket);
-			logger.info("jsapi_ticket：" + jsapi_ticket);
-			redisClient.set(keyTicket, jsapi_ticket);
-			redisClient.expire(keyTicket, time); //过期时间设置
-		});
-	}).on('error', function(e) {
-		console.error(e.message);
-	})
+        // 监听事件
+        var rawData = '';
+        res.setEncoding('utf8');
+        res.on('data', function(chunk) {
+            rawData += chunk;
+        });
+        res.on('end', function() {
+            var data = JSON.parse(rawData);
+            var jsapi_ticket = JSON.stringify(data.ticket);
+            logger.info("jsapi_ticket：" + jsapi_ticket);
+            redisClient.set(keyTicket, jsapi_ticket);
+            redisClient.expire(keyTicket, time); //过期时间设置
+        });
+    }).on('error', function(e) {
+        console.error(e.message);
+    })
 }
 
 // https.get("https://weiquaninfo.cn/weather/xinzhi", function(res) {
